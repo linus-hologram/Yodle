@@ -9,8 +9,23 @@ import Foundation
 
 enum SMTPCommand {
     // Initial greeting commands
-    case HELO(hostname: String)
-    case EHLO(hostname: String)
+    case Helo(hostname: String)
+    case Ehlo(hostname: String)
+    
+    // Mail Commands
+    case StartMail(Mail)
+    case Recipient(String)
+    case StartMailData
+    case MailData(Mail)
+    
+    case Reset
+    case Verify(String)
+    case Expand(String)
+    
+    case Help(String?)
+    case Noop(String?)
+    
+    case Quit
 }
 
 enum SMTPResponseType { // per https://datatracker.ietf.org/doc/html/rfc5321#section-4.2.1

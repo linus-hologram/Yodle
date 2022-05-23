@@ -12,6 +12,43 @@ class YodleOutboundHandler: MessageToByteEncoder {
     typealias OutboundIn = SMTPCommand
     
     func encode(data: SMTPCommand, out: inout ByteBuffer) throws {
+        
+        switch data {
+        case .Helo(let hostname):
+            out.writeString("HELO \(hostname)")
+        case .Ehlo(let hostname):
+            out.writeString("EHLO \(hostname)")
+        case .StartMail(let mail):
+            out.writeString("MAIL FROM: <\(mail.sender.email)>")
+        case .Recipient(let address):
+            out.writeString("MAIL RCPT: <\(address)>")
+        case .StartMailData:
+            out.writeString("DATA")
+        case .MailData(let mail):
+            out.writeString(mail.text)
+            out.writeString("\r\n.")
+        
+        case .Reset:
+            out.writeString("RSET")
+        case .Verify(let address):
+            out.writeString("VRFY \(address)")
+        case .Expand(let argument):
+            out.writeString("EXPN \(argument)")
+        case .Help(let argument):
+            out.writeString("HELP")
+            if let argument = argument {
+                out.writeString(" \(argument)")
+            }
+        case .Noop(let argument):
+            out.writeString("NOOP")
+            if let argument = argument {
+                out.writeString(" \(argument)")
+            }
+        case .Quit:
+            out.writeString("QUIT")
+        }
+        
+        out.writeString("\r\n")
         fatalError("not yet implemented")
     }
 }
