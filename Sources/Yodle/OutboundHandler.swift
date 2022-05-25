@@ -18,16 +18,19 @@ class YodleOutboundHandler: MessageToByteEncoder {
             out.writeString("HELO \(hostname)")
         case .Ehlo(let hostname):
             out.writeString("EHLO \(hostname)")
-        case .StartMail(let mail):
-            out.writeString("MAIL FROM: <\(mail.sender.email)>")
+        case .StartMail(let address):
+            out.writeString("MAIL FROM: <\(address)>")
         case .Recipient(let address):
             out.writeString("MAIL RCPT: <\(address)>")
         case .StartMailData:
             out.writeString("DATA")
         case .MailData(let mail):
+            mail.headers.forEach { (key: String, value: String) in
+                out.writeString("\(key): \(value) \r\n")
+            }
+            out.writeString("\r\n")
             out.writeString(mail.text)
             out.writeString("\r\n.")
-        
         case .Reset:
             out.writeString("RSET")
         case .Verify(let address):

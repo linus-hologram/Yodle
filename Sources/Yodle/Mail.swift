@@ -9,8 +9,9 @@ import Foundation
 
 // https://datatracker.ietf.org/doc/html/rfc5322
 // https://datatracker.ietf.org/doc/html/rfc5321
+// https://datatracker.ietf.org/doc/html/rfc822
 struct Mail {
-    let messageId: String = UUID().uuidString
+    internal let messageId: String = UUID().uuidString
 
     let sender: MailUser
     let recipients: Set<MailUser>

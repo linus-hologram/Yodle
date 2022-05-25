@@ -13,7 +13,7 @@ enum SMTPCommand {
     case Ehlo(hostname: String)
     
     // Mail Commands
-    case StartMail(Mail)
+    case StartMail(String)
     case Recipient(String)
     case StartMailData
     case MailData(Mail)
