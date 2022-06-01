@@ -33,7 +33,6 @@ enum SMTPResponseType { // per https://datatracker.ietf.org/doc/html/rfc5321#sec
     case IntermediatePositive(SMTPResponse) // 3XX
     case TransientNegative(SMTPResponse) // 4XX
     case PermanentNegative(SMTPResponse) // 5XX
-    
 }
 
 struct SMTPResponse {
