@@ -3,15 +3,19 @@ import NIOPosix
 
 public struct Yodle {
     public static func connect(eventLoop: EventLoop, hostname: String, port: Int) async throws -> YodleClient {
+        var yodleContext: YodleClientContext?
+        
         return try await withCheckedThrowingContinuation({ (continuation: CheckedContinuation<YodleClient, Error>) in
             ClientBootstrap(group: eventLoop).channelInitializer { channel in
-                let yodleDecoder = ByteToMessageHandler(YodleInboundHandler())
+                yodleContext = YodleClientContext(eventLoop: eventLoop, channel: channel)
+                
+                let yodleDecoder = ByteToMessageHandler(YodleInboundHandler(context: yodleContext!))
                 let yodleSerializer = MessageToByteHandler(YodleOutboundHandler())
                 
                 return channel.pipeline.addHandlers([yodleDecoder, yodleSerializer])
             }.connect(host: hostname, port: port).whenComplete { result in
                 do {
-                    continuation.resume(returning: YodleClient(eventLoop: eventLoop, channel: try result.get()))
+                    continuation.resume(returning: YodleClient(eventLoop: eventLoop, channel: try result.get(), context: yodleContext!))
                 } catch {
                     continuation.resume(throwing: error)
                 }
@@ -25,10 +29,10 @@ public struct YodleClient {
     let channel: Channel
     let context: YodleClientContext
     
-    init(eventLoop: EventLoop, channel: Channel) {
+    init(eventLoop: EventLoop, channel: Channel, context: YodleClientContext) {
         self.eventLoop = eventLoop
         self.channel = channel
-        self.context = YodleClientContext(eventLoop: eventLoop, channel: channel)
+        self.context = context
     }
 }
 
@@ -36,7 +40,7 @@ public actor YodleClientContext {
     let eventLoop: EventLoop
     let channel: Channel
     
-    private var processingQueue: [EventLoopPromise<[SMTPResponse]>] = []
+    internal var processingQueue: [EventLoopPromise<[SMTPResponse]>] = []
     
     init(eventLoop: EventLoop, channel: Channel) {
         self.eventLoop = eventLoop
