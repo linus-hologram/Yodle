@@ -23,9 +23,12 @@ public enum YodleSSLConfiguration {
 }
 
 internal struct ClientHandshake {
-    init?() async throws {
-        // perform EHLO procedure
-        return nil
+    private(set) var startTLS: Bool = false
+    
+    init (handshakeResponse: [SMTPResponse]) {
+        for message in handshakeResponse {
+            if message.message == SMTPExtension.STARTTLS.rawValue { startTLS = true }
+        }
     }
 }
 
@@ -33,7 +36,7 @@ public struct Yodle {
     public static func connect(eventLoop: EventLoop, hostname: String, port: Int, ssl: YodleSSLOption) async throws -> YodleClient {
         var yodleContext: YodleClientContext?
         
-        let client = try await withCheckedThrowingContinuation({ (continuation: CheckedContinuation<YodleClient, Error>) in
+        var client = try await withCheckedThrowingContinuation({ (continuation: CheckedContinuation<YodleClient, Error>) in
             ClientBootstrap(group: eventLoop).channelInitializer { channel in
                 yodleContext = YodleClientContext(eventLoop: eventLoop, channel: channel)
                 
@@ -59,30 +62,75 @@ public struct Yodle {
                 return channel.pipeline.addHandlers(handlers)
             }.connect(host: hostname, port: port).whenComplete { result in
                 do {
-                    continuation.resume(returning: YodleClient(eventLoop: eventLoop, channel: try result.get(), context: yodleContext!))
+                    continuation.resume(returning: YodleClient(hostname: hostname, eventLoop: eventLoop, channel: try result.get(), context: yodleContext!))
                 } catch {
                     continuation.resume(throwing: error)
                 }
             }
         })
         
-//        if case .STARTTLS(let configuration) = ssl {
-//
-//        }
-        
-        return client
+        do {
+            try await client.performHandshake()
+            
+            if case .STARTTLS(let configuration) = ssl {
+                guard client.handshake.startTLS else {
+                    throw YodleError.ExtensionNotSupported(.STARTTLS)
+                }
+                
+                try await client.performStartTLS(configuration: configuration)
+            }
+            
+            return client
+        } catch {
+            await client.shutdown()
+            throw error
+        }
     }
 }
 
 public struct YodleClient {
+    let hostname: String
     let eventLoop: EventLoop
     let channel: Channel
     let context: YodleClientContext
     
-    init(eventLoop: EventLoop, channel: Channel, context: YodleClientContext) {
+    private(set) var handshake: ClientHandshake!
+    
+    init(hostname: String, eventLoop: EventLoop, channel: Channel, context: YodleClientContext) {
+        self.hostname = hostname
         self.eventLoop = eventLoop
         self.channel = channel
         self.context = context
+    }
+    
+    func shutdown() async {
+        _ = try? await context.send(message: .Quit)
+        await context.disconnect()
+        try? await channel.close()
+    }
+    
+    internal mutating func performHandshake() async throws {
+        do {
+            // Attempt 1: EHLO
+            let handshakeResponse = try await context.send(message: SMTPCommand.Ehlo(hostname: hostname))
+            try handshakeResponse.expectResponseStatus(codes: .commandOK)
+            self.handshake = ClientHandshake(handshakeResponse: handshakeResponse)
+        } catch {
+            // Attempt 2: HELO
+            let handshakeResponse = try await context.send(message: SMTPCommand.Helo(hostname: hostname))
+            try handshakeResponse.expectResponseStatus(codes: .commandOK, error: .HandshakeError)
+            self.handshake = ClientHandshake(handshakeResponse: handshakeResponse)
+        }
+    }
+    
+    internal mutating func performStartTLS(configuration: YodleSSLConfiguration) async throws {
+        try await context.send(message: SMTPCommand.StartTLS).expectResponseStatus(codes: .serviceReady, error: .ExtensionError(.STARTTLS))
+        
+        let sslContext = try NIOSSLContext(configuration: configuration.makeTLSConfiguration())
+        let sslHandler = try NIOSSLClientHandler(context: sslContext, serverHostname: hostname)
+        
+        try await self.channel.pipeline.addHandler(sslHandler, position: .first)
+        try await performHandshake()
     }
 }
 

@@ -14,4 +14,8 @@ enum YodleError: Error {
     
     case ResponseNotOkay(SMTPResponse)
     case ResponseMissing
+    case HandshakeError
+    
+    case ExtensionNotSupported(SMTPExtension)
+    case ExtensionError(SMTPExtension)
 }

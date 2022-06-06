@@ -49,6 +49,8 @@ class YodleOutboundHandler: MessageToByteEncoder {
             }
         case .Quit:
             out.writeString("QUIT")
+        case .StartTLS:
+            out.writeString("STARTTLS")
         }
         
         out.writeString("\r\n")
