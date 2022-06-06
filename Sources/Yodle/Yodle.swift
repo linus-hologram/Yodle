@@ -23,12 +23,12 @@ public enum YodleSSLConfiguration {
 }
 
 internal struct ClientHandshake {
-    private(set) var startTLS: Bool = false
+    private(set) var supportedExtensions: [SMTPExtension] = []
     
     init (handshakeResponse: [SMTPResponse]) {
-        for message in handshakeResponse {
-            if message.message == SMTPExtension.STARTTLS.rawValue { startTLS = true }
-        }
+        supportedExtensions = SMTPExtension.allCases.filter({ ext in
+            return handshakeResponse.contains(where: { $0.message == ext.rawValue })
+        })
     }
 }
 
@@ -73,7 +73,7 @@ public struct Yodle {
             try await client.performHandshake()
             
             if case .STARTTLS(let configuration) = ssl {
-                guard client.handshake.startTLS else {
+                guard client.handshake.supportedExtensions.contains(.STARTTLS) else {
                     throw YodleError.ExtensionNotSupported(.STARTTLS)
                 }
                 
@@ -94,8 +94,8 @@ public struct YodleClient {
     let channel: Channel
     let context: YodleClientContext
     
-    private(set) var handshake: ClientHandshake!
-    
+    var handshake: ClientHandshake!
+        
     init(hostname: String, eventLoop: EventLoop, channel: Channel, context: YodleClientContext) {
         self.hostname = hostname
         self.eventLoop = eventLoop
@@ -115,11 +115,13 @@ public struct YodleClient {
             let handshakeResponse = try await context.send(message: SMTPCommand.Ehlo(hostname: hostname))
             try handshakeResponse.expectResponseStatus(codes: .commandOK)
             self.handshake = ClientHandshake(handshakeResponse: handshakeResponse)
+            await context.updateSupportedExtensions(extensions: self.handshake.supportedExtensions)
         } catch {
             // Attempt 2: HELO
             let handshakeResponse = try await context.send(message: SMTPCommand.Helo(hostname: hostname))
             try handshakeResponse.expectResponseStatus(codes: .commandOK, error: .HandshakeError)
             self.handshake = ClientHandshake(handshakeResponse: handshakeResponse)
+            await context.updateSupportedExtensions(extensions: self.handshake.supportedExtensions)
         }
     }
     
@@ -131,56 +133,5 @@ public struct YodleClient {
         
         try await self.channel.pipeline.addHandler(sslHandler, position: .first)
         try await performHandshake()
-    }
-}
-
-public actor YodleClientContext {
-    let eventLoop: EventLoop
-    let channel: Channel
-    
-    internal var processingQueue: [EventLoopPromise<[SMTPResponse]>] = []
-    
-    init(eventLoop: EventLoop, channel: Channel) {
-        self.eventLoop = eventLoop
-        self.channel = channel
-    }
-    
-    func send(message: SMTPCommand) async throws -> [SMTPResponse] {
-        return try await withCheckedThrowingContinuation({ continuation in
-            let result: EventLoopFuture<[SMTPResponse]> = eventLoop.flatSubmit {
-                let promise: EventLoopPromise<[SMTPResponse]> = self.eventLoop.makePromise()
-                
-                self.processingQueue.append(promise)
-                
-                _ = self.channel.writeAndFlush(message)
-                
-                return promise.futureResult
-            }
-            
-            result.whenComplete { result in
-                do {
-                    continuation.resume(returning: try result.get())
-                } catch {
-                    continuation.resume(throwing: error)
-                }
-            }
-        })
-    }
-    
-    func receive(responses: [SMTPResponse]) {
-        let finishedPromise = processingQueue.removeFirst()
-        finishedPromise.succeed(responses)
-    }
-    
-    func disconnect() {
-        for promise in processingQueue {
-            promise.fail(YodleError.Disconnected)
-        }
-        
-        processingQueue.removeAll()
-    }
-    
-    deinit {
-        disconnect()
     }
 }

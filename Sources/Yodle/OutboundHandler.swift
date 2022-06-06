@@ -9,17 +9,18 @@ import Foundation
 import NIOCore
 
 class YodleOutboundHandler: MessageToByteEncoder {
-    typealias OutboundIn = SMTPCommand
+    typealias OutboundIn = (SMTPCommand, [SMTPExtension])
     
-    func encode(data: SMTPCommand, out: inout ByteBuffer) throws {
+    func encode(data: OutboundIn, out: inout ByteBuffer) throws {
         
-        switch data {
+        switch data.0 {
         case .Helo(let hostname):
             out.writeString("HELO \(hostname)")
         case .Ehlo(let hostname):
             out.writeString("EHLO \(hostname)")
         case .StartMail(let address):
             out.writeString("MAIL FROM: <\(address)>")
+            if data.1.contains(.EIGHTBITMIME) { out.writeString(" BODY=8BITMIME")}
         case .Recipient(let address):
             out.writeString("MAIL RCPT: <\(address)>")
         case .StartMailData:

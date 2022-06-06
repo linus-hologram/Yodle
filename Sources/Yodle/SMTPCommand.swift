@@ -31,7 +31,8 @@ enum SMTPCommand {
     case StartTLS
 }
 
-enum SMTPExtension: String {
+enum SMTPExtension: String, CaseIterable {
     case STARTTLS
+    case EIGHTBITMIME = "8BITMIME"
 }
 

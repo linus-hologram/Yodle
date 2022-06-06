@@ -1,5 +1,5 @@
 //
-//  File.swift
+//  SMTPResponse.swift
 //  
 //
 //  Created by Linus Bohle on 06.06.22.
