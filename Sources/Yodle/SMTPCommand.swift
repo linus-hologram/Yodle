@@ -28,14 +28,43 @@ enum SMTPCommand {
     case Quit
 }
 
-enum SMTPResponseType { // per https://datatracker.ietf.org/doc/html/rfc5321#section-4.2.1
+enum SMTPResponseType: Equatable {
+    // per https://datatracker.ietf.org/doc/html/rfc5321#section-4.2.1
     case Positive(SMTPResponse) // 2XX
     case IntermediatePositive(SMTPResponse) // 3XX
     case TransientNegative(SMTPResponse) // 4XX
     case PermanentNegative(SMTPResponse) // 5XX
 }
 
-struct SMTPResponse {
+enum SMTPResponseStatus: Int {
+    case commandOK = 250
+}
+
+struct SMTPResponse: Equatable {
     let code: Int
     let message: String
+    
+    var responseType: SMTPResponseType {
+        get {
+            let stringRepresentation = String(code)
+            
+            if stringRepresentation.hasPrefix("2") { return .Positive(self) }
+            else if stringRepresentation.hasPrefix("3") { return .IntermediatePositive(self)}
+            else if stringRepresentation.hasPrefix("4") { return .TransientNegative(self)}
+            else { return .PermanentNegative(self)}
+        }
+    }
+    
+}
+
+extension Array where Element == SMTPResponse {
+    func expectResponseStatus(codes: SMTPResponseStatus...) throws {
+        guard let firstElement = self.first else { throw YodleError.ResponseMissing }
+        guard codes.contains(where: { $0.rawValue == firstElement.code }) else { throw YodleError.ResponseNotOkay(firstElement) }
+    }
+    
+    func expectResponseType(types: SMTPResponseType...) throws {
+        guard let firstElement = self.first else { throw YodleError.ResponseMissing }
+        guard types.contains(where: { $0 == firstElement.responseType }) else { throw YodleError.ResponseNotOkay(firstElement) }
+    }
 }

@@ -10,5 +10,8 @@ import Foundation
 enum YodleError: Error {
     case Disconnected
     case InvalidResponseCode(String?)
-    case InvalidResponse(String?)
+    case InvalidResponseMessage(String?)
+    
+    case ResponseNotOkay(SMTPResponse)
+    case ResponseMissing
 }

@@ -47,13 +47,13 @@ class YodleInboundHandler: ByteToMessageDecoder {
             throw YodleError.InvalidResponseCode(codeDigits)
         }
         
-        guard buffer.readableBytes >= 2 else { throw YodleError.InvalidResponse(nil) } // even if there's no text, \r\n is still needed
+        guard buffer.readableBytes >= 2 else { throw YodleError.InvalidResponseMessage(nil) } // even if there's no text, \r\n is still needed
         
         var message: String = ""
         
         while !message.hasSuffix("\r\n") {
             guard let char = buffer.readString(length: 1) else {
-                throw YodleError.InvalidResponse(message)
+                throw YodleError.InvalidResponseMessage(message)
             }
             
             message.append(char)
