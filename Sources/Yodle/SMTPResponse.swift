@@ -10,6 +10,7 @@ import Foundation
 enum SMTPResponseStatus: Int {
     case commandOK = 250
     case serviceReady = 220
+    case authenticationSuccessful = 235
 }
 
 enum SMTPResponseType: Equatable {

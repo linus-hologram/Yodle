@@ -18,4 +18,6 @@ enum YodleError: Error {
     
     case ExtensionNotSupported(SMTPExtension)
     case ExtensionError(SMTPExtension)
+    case AuthenticationNotSupported(SASLMethods)
+    case AuthenticationFailure([SMTPResponse])
 }

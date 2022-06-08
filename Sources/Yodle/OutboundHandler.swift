@@ -52,9 +52,12 @@ class YodleOutboundHandler: MessageToByteEncoder {
             out.writeString("QUIT")
         case .StartTLS:
             out.writeString("STARTTLS")
+        case .XOAuth2(let username, let token):
+            let ctrlA = String(0x01)
+            out.writeString("AUTH XOAUTH2 ")
+            out.writeString("user=\(username)\(ctrlA)auth=Bearer \(token + ctrlA + ctrlA)".base64Encoded)
         }
         
         out.writeString("\r\n")
-        fatalError("not yet implemented")
     }
 }

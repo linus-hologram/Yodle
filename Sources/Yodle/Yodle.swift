@@ -24,11 +24,20 @@ public enum YodleSSLConfiguration {
 
 internal struct ClientHandshake {
     private(set) var supportedExtensions: [SMTPExtension] = []
+    private(set) var supportedAuthentication: [String] = []
     
     init (handshakeResponse: [SMTPResponse]) {
-        supportedExtensions = SMTPExtension.allCases.filter({ ext in
-            return handshakeResponse.contains(where: { $0.message == ext.rawValue })
-        })
+        for r in handshakeResponse {
+            let parameters = r.message.components(separatedBy: " ").map({ $0.uppercased() })
+            
+            if let ext = SMTPExtension(rawValue: parameters[0]) {
+                supportedExtensions.append(ext)
+                
+                if ext == .AUTH {
+                    supportedAuthentication = Array(parameters.dropFirst())
+                }
+            }
+        }
     }
 }
 
@@ -95,7 +104,7 @@ public struct YodleClient {
     let context: YodleClientContext
     
     var handshake: ClientHandshake!
-        
+    
     init(hostname: String, eventLoop: EventLoop, channel: Channel, context: YodleClientContext) {
         self.hostname = hostname
         self.eventLoop = eventLoop
@@ -133,5 +142,14 @@ public struct YodleClient {
         
         try await self.channel.pipeline.addHandler(sslHandler, position: .first)
         try await performHandshake()
+    }
+    
+    public func performXOAuth2(username: String, accessToken: String) async throws {
+        guard handshake.supportedAuthentication.contains(SASLMethods.XOAUTH2.rawValue) else {
+            throw YodleError.AuthenticationNotSupported(.XOAUTH2)
+        }
+        
+        let response = try await context.send(message: .XOAuth2(username: username, token: accessToken))
+        try response.expectResponseStatus(codes: .authenticationSuccessful, error: .AuthenticationFailure(response))
     }
 }

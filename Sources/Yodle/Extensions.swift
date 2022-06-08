@@ -14,3 +14,9 @@ extension Date {
         return formatter.string(from: self)
     }
 }
+
+extension String {
+    var base64Encoded: String {
+        Data(utf8).base64EncodedString()
+    }
+}
