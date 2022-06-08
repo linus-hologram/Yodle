@@ -31,6 +31,9 @@ enum SMTPCommand {
     case StartTLS
     case XOAuth2(username: String, token: String)
     case PlainAuth(authorization: String?, authentication: String, password: String)
+    case LoginAuth
+    case LoginUser(username: String)
+    case LoginPassword(password: String)
 }
 
 enum SMTPExtension: String, CaseIterable {

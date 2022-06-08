@@ -164,4 +164,20 @@ public struct YodleClient {
         let response = try await context.send(message: .PlainAuth(authorization: authorizationIdentity, authentication: authenticationIdentity, password: password))
         try response.expectResponseStatus(codes: .authenticationSuccessful, error: .AuthenticationFailure(response))
     }
+    
+    // https://www.ietf.org/archive/id/draft-murchison-sasl-login-00.txt
+    public func performLoginAuth(username: String, password: String) async throws {
+        guard handshake.supportedAuthentication.contains(SASLMethods.LOGIN.rawValue) else {
+            throw YodleError.AuthenticationNotSupported(.LOGIN)
+        }
+        
+        let initialLoginResponse = try await context.send(message: .LoginAuth)
+        try initialLoginResponse.expectResponseStatus(codes: .containingChallenge, error: .AuthenticationFailure(initialLoginResponse))
+        
+        let usernameLoginResponse = try await context.send(message: .LoginUser(username: username))
+        try usernameLoginResponse.expectResponseStatus(codes: .containingChallenge, error: .AuthenticationFailure(usernameLoginResponse))
+        
+        let passwordLoginResponse = try await context.send(message: .LoginPassword(password: password))
+        try passwordLoginResponse.expectResponseStatus(codes: .authenticationSuccessful, error: .AuthenticationFailure(passwordLoginResponse))
+    }
 }

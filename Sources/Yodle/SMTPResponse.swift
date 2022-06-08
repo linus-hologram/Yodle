@@ -11,6 +11,7 @@ enum SMTPResponseStatus: Int {
     case commandOK = 250
     case serviceReady = 220
     case authenticationSuccessful = 235
+    case containingChallenge = 334
 }
 
 enum SMTPResponseType: Equatable {
