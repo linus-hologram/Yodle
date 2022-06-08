@@ -144,12 +144,24 @@ public struct YodleClient {
         try await performHandshake()
     }
     
+    // https://developers.google.com/gmail/imap/xoauth2-protocol
+    // https://docs.microsoft.com/en-us/exchange/client-developer/legacy-protocols/how-to-authenticate-an-imap-pop-smtp-application-by-using-oauth
     public func performXOAuth2(username: String, accessToken: String) async throws {
         guard handshake.supportedAuthentication.contains(SASLMethods.XOAUTH2.rawValue) else {
             throw YodleError.AuthenticationNotSupported(.XOAUTH2)
         }
         
         let response = try await context.send(message: .XOAuth2(username: username, token: accessToken))
+        try response.expectResponseStatus(codes: .authenticationSuccessful, error: .AuthenticationFailure(response))
+    }
+    
+    // https://datatracker.ietf.org/doc/html/rfc4616
+    public func performPlainAuth(authorizationIdentity: String?, authenticationIdentity: String, password: String) async throws {
+        guard handshake.supportedAuthentication.contains(SASLMethods.PLAIN.rawValue) else {
+            throw YodleError.AuthenticationNotSupported(.PLAIN)
+        }
+        
+        let response = try await context.send(message: .PlainAuth(authorization: authorizationIdentity, authentication: authenticationIdentity, password: password))
         try response.expectResponseStatus(codes: .authenticationSuccessful, error: .AuthenticationFailure(response))
     }
 }

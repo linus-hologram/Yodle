@@ -56,6 +56,9 @@ class YodleOutboundHandler: MessageToByteEncoder {
             let ctrlA = String(0x01)
             out.writeString("AUTH XOAUTH2 ")
             out.writeString("user=\(username)\(ctrlA)auth=Bearer \(token + ctrlA + ctrlA)".base64Encoded)
+        case .PlainAuth(let authorization, let authentication, let passowrd):
+            out.writeString("AUTH PLAIN ")
+            out.writeString("\((authorization != nil) ? authorization! : "")\("\0" + authentication + "\0" + passowrd)".base64Encoded)
         }
         
         out.writeString("\r\n")
