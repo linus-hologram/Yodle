@@ -65,6 +65,10 @@ class YodleOutboundHandler: MessageToByteEncoder {
             out.writeString(username.base64Encoded)
         case .LoginPassword(let password):
             out.writeString(password.base64Encoded)
+        case .StartCramMD5Auth:
+            out.writeString("AUTH CRAM-MD5")
+        case .SubmitCramMD5Challenge(let username, let solvedChallenge):
+            out.writeString("\(username) \(solvedChallenge)".base64Encoded)
         }
         
         out.writeString("\r\n")

@@ -19,4 +19,9 @@ extension String {
     var base64Encoded: String {
         Data(utf8).base64EncodedString()
     }
+    
+    var base64Decoded: String? {
+        guard let decodedData = Data(base64Encoded: self) else { return nil }
+        return String(data: decodedData, encoding: .utf8)
+    }
 }

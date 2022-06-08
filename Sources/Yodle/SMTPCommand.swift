@@ -29,11 +29,17 @@ enum SMTPCommand {
     
     // Extensions
     case StartTLS
+    
     case XOAuth2(username: String, token: String)
+    
     case PlainAuth(authorization: String?, authentication: String, password: String)
+    
     case LoginAuth
     case LoginUser(username: String)
     case LoginPassword(password: String)
+    
+    case StartCramMD5Auth
+    case SubmitCramMD5Challenge(username: String, solvedChallenge: String)
 }
 
 enum SMTPExtension: String, CaseIterable {
@@ -48,6 +54,6 @@ enum SASLMethods: String {
     case XOAUTH2
     case LOGIN
     case PLAIN
-    case CRAMMD5
+    case CRAMMD5 = "CRAM-MD5"
 }
 

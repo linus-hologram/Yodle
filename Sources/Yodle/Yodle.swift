@@ -1,6 +1,8 @@
+import Foundation
 import NIO
 import NIOPosix
 import NIOSSL
+import CryptoKit
 
 public enum YodleSSLOption {
     case insecure
@@ -179,5 +181,26 @@ public struct YodleClient {
         
         let passwordLoginResponse = try await context.send(message: .LoginPassword(password: password))
         try passwordLoginResponse.expectResponseStatus(codes: .authenticationSuccessful, error: .AuthenticationFailure(passwordLoginResponse))
+    }
+    
+    // https://www.rfc-editor.org/rfc/rfc2195.html
+    // TODO - Test correctness using rfc above
+    public func performCramMD5(username: String, password: String) async throws {
+        guard handshake.supportedAuthentication.contains(SASLMethods.CRAMMD5.rawValue) else {
+            throw YodleError.AuthenticationNotSupported(.CRAMMD5)
+        }
+        
+        let initialResponse = try await context.send(message: .StartCramMD5Auth)
+        try initialResponse.expectResponseStatus(codes: .containingChallenge, error: .AuthenticationFailure(initialResponse))
+        
+        guard let serverChallenge = initialResponse.first?.message.base64Decoded?.data(using: .utf8) else { throw YodleError.AuthenticationFailure(initialResponse) }
+        guard let passwordData = password.data(using: .utf8) else { throw YodleError.ParsingError("password parameter could not be parsed to data using utf8 encoding") }
+        
+        let key = SymmetricKey(data: passwordData)
+        // https://stackoverflow.com/questions/39075043/how-to-convert-data-to-hex-string-in-swift - convert to lowercase hex digits
+        let solvedChallenge = HMAC<Insecure.MD5>.authenticationCode(for: serverChallenge, using: key).map{ String(format: "%02hhx", $0) }.joined()
+        
+        let solvedChallengeResponse = try await context.send(message: .SubmitCramMD5Challenge(username: username, solvedChallenge: solvedChallenge))
+        try solvedChallengeResponse.expectResponseStatus(codes: .authenticationSuccessful, error: .AuthenticationFailure(solvedChallengeResponse))
     }
 }
