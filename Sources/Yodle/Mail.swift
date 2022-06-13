@@ -10,6 +10,25 @@ import Foundation
 // https://datatracker.ietf.org/doc/html/rfc5322
 // https://datatracker.ietf.org/doc/html/rfc5321
 // https://datatracker.ietf.org/doc/html/rfc822
+
+@resultBuilder
+struct CustomHeaderBuilder {
+    typealias HeaderDeclaration = (String, String)
+    
+    static func buildBlock(_ components: HeaderDeclaration...) -> [String: String] {
+        return Dictionary(Array(components.compactMap({ $0 })), uniquingKeysWith: { (first, last) in last })
+    }
+    
+    static func buildEither(first component: HeaderDeclaration) -> [String: String] {
+        return Dictionary(dictionaryLiteral: component)
+    }
+    
+    static func buildEither(second component: HeaderDeclaration) -> [String: String] {
+        return Dictionary(dictionaryLiteral: component)
+    }
+    
+}
+
 struct Mail {
     internal let messageId: String = UUID().uuidString
 
@@ -24,7 +43,7 @@ struct Mail {
     
     let subject: String?
     
-    let customHeaders: [String: String]
+    private(set) var customHeaders: [String: String]
     
     let text: String // https://datatracker.ietf.org/doc/html/rfc5321#section-4.5.2
     
@@ -35,21 +54,21 @@ struct Mail {
         dict["Date"] = Date().smtpFormattedDate
         
         if let from = from {
-            dict["From"] = from.compactMap{$0.smtpFormatted}.joined(separator: ",")
+            dict["From"] = from.compactMap{ $0.smtpFormatted }.joined(separator: ",")
         } else { dict["From"] = sender.smtpFormatted }
         
-        dict["To"] = recipients.compactMap{$0.smtpFormatted}.joined(separator: ",")
+        dict["To"] = recipients.compactMap{ $0.smtpFormatted }.joined(separator: ",")
         
         if let cc = cc {
-            dict["Cc"] = cc.compactMap{$0.smtpFormatted}.joined(separator: ",")
+            dict["Cc"] = cc.compactMap{ $0.smtpFormatted }.joined(separator: ",")
         }
         
         if let bcc = bcc {
-            dict["Bcc"] = bcc.compactMap{$0.smtpFormatted}.joined(separator: ",")
+            dict["Bcc"] = bcc.compactMap{ $0.smtpFormatted }.joined(separator: ",")
         }
         
         if let replyTo = replyTo {
-            dict["Reply-To"] = replyTo.compactMap{$0.smtpFormatted}.joined(separator: ",")
+            dict["Reply-To"] = replyTo.compactMap{ $0.smtpFormatted }.joined(separator: ",")
         }
         
         if let subject = subject {
@@ -62,6 +81,10 @@ struct Mail {
         }
         
         return dict
+    }
+    
+    mutating func declareHeaders(@CustomHeaderBuilder content: () -> [String: String]) {
+        customHeaders = content()
     }
 }
 

@@ -120,6 +120,17 @@ public struct YodleClient {
         try? await channel.close()
     }
     
+    func sendMail(mail: Mail) async throws {
+        try await context.send(message: .StartMail(mail.sender.email)).expectResponseStatus(codes: .commandOK)
+        
+        for recipient in mail.recipients {
+            try await context.send(message: .Recipient(recipient.email)).expectResponseStatus(codes: .commandOK)
+        }
+        
+        try await context.send(message: .StartMailData).expectResponseStatus(codes: .startMailInput)
+        try await context.send(message: .MailData(mail)).expectResponseStatus(codes: .commandOK)
+    }
+    
     internal mutating func performHandshake() async throws {
         do {
             // Attempt 1: EHLO
@@ -183,6 +194,7 @@ public struct YodleClient {
         try passwordLoginResponse.expectResponseStatus(codes: .authenticationSuccessful, error: .AuthenticationFailure(passwordLoginResponse))
     }
     
+    // https://mailtrap.io/blog/smtp-auth/
     // https://www.rfc-editor.org/rfc/rfc2195.html
     // TODO - Test correctness using rfc above
     public func performCramMD5(username: String, password: String) async throws {
