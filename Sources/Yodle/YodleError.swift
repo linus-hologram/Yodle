@@ -22,4 +22,6 @@ enum YodleError: Error {
     case AuthenticationFailure([SMTPResponse])
     
     case ParsingError(String)
+    
+    case UnexpectedError(String)
 }

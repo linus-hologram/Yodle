@@ -29,17 +29,24 @@ class YodleInboundHandler: ByteToMessageDecoder {
         }
         
         return .continue
-        
     }
     
     func decodeLast(context: ChannelHandlerContext, buffer: inout ByteBuffer, seenEOF: Bool) throws -> DecodingState {
-        if buffer.readableBytes > 0 && buffer.readableBytesView.firstIndex(of: 0x0A) == nil {
+        if buffer.readableBytes == 0 {
+            Task { try await yodleContext.deliverResponses() }
+            return .continue
+        }
+        
+        if buffer.readableBytesView.firstIndex(of: 0x0A) == nil {
             throw YodleError.InvalidResponseMessage(buffer.readString(length: buffer.readableBytes))
         } // throw error if the buffer isn't empty and doesn't contain a LF occurrence
 
         do {
             let response = try processRawSMTPResponse(buffer: &buffer)
-            Task { await yodleContext.receiveOne(response: response) }
+            Task {
+                await yodleContext.receiveOne(response: response)
+                try await yodleContext.deliverResponses()
+            }
         } catch {
             Task { await yodleContext.disconnect() }
             throw error

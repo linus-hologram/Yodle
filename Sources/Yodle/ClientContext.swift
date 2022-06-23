@@ -14,6 +14,7 @@ public actor YodleClientContext {
     var supportedExtensions: [SMTPExtension] = []
     
     internal var processingQueue: [EventLoopPromise<[SMTPResponse]>] = []
+    internal var currentResponseBuffer: [SMTPResponse] = []
     
     init(eventLoop: EventLoop, channel: Channel) {
         self.eventLoop = eventLoop
@@ -25,32 +26,32 @@ public actor YodleClientContext {
     }
     
     func send(message: SMTPCommand) async throws -> [SMTPResponse] {
-        return try await withCheckedThrowingContinuation({ continuation in
-            let result: EventLoopFuture<[SMTPResponse]> = eventLoop.flatSubmit {
-                let promise: EventLoopPromise<[SMTPResponse]> = self.eventLoop.makePromise()
-                
-                self.processingQueue.append(promise)
-                
-                _ = self.channel.writeAndFlush((message, self.supportedExtensions))
-                
-                return promise.futureResult
-            }
+//        return try await withCheckedThrowingContinuation({ continuation in
+        // use task queue lib
+        let result: EventLoopFuture<[SMTPResponse]> = eventLoop.flatSubmit {
+            let promise: EventLoopPromise<[SMTPResponse]> = self.eventLoop.makePromise()
             
-            result.whenComplete { result in
-                do {
-                    continuation.resume(returning: try result.get())
-                } catch {
-                    continuation.resume(throwing: error)
-                }
-            }
-        })
+            self.processingQueue.append(promise)
+            
+            _ = self.channel.writeAndFlush((message, self.supportedExtensions))
+            
+            return promise.futureResult
+        }
+        
+        return try await result.get()
     }
     
-    func receive(responses: [SMTPResponse]) {
+    func receiveOne(response: SMTPResponse) {
+        currentResponseBuffer.append(response)
+    }
+    
+    func deliverResponses() throws {
+        guard !currentResponseBuffer.isEmpty else { throw YodleError.UnexpectedError("Client context response buffer was empty.")}
         let finishedPromise = processingQueue.removeFirst()
-        finishedPromise.succeed(responses)
+        finishedPromise.succeed(currentResponseBuffer)
+        currentResponseBuffer.removeAll()
     }
-    
+        
     func disconnect() {
         for promise in processingQueue {
             promise.fail(YodleError.Disconnected)
