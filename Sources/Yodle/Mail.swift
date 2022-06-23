@@ -26,26 +26,24 @@ struct CustomHeaderBuilder {
     static func buildEither(second component: HeaderDeclaration) -> [String: String] {
         return Dictionary(dictionaryLiteral: component)
     }
-    
 }
 
-struct Mail {
+// https://www.rfc-editor.org/rfc/rfc2045#section-6.2, https://www.rfc-editor.org/rfc/rfc4021.html#section-2.2.4
+class Mail {
     internal let messageId: String = UUID().uuidString
-
+    
     let sender: MailUser
     let recipients: Set<MailUser>
-
-    let from: Set<MailUser>? // https://serverfault.com/questions/554520/smtp-allows-for-multiple-from-addresses-in-the-rfc-was-this-ever-useful-why-do
-    let cc: Set<MailUser>?
-    let bcc: Set<MailUser>?
     
-    let replyTo: Set<MailUser>?
+    var from: Set<MailUser>? = nil // https://serverfault.com/questions/554520/smtp-allows-for-multiple-from-addresses-in-the-rfc-was-this-ever-useful-why-do
+    var cc: Set<MailUser>? = nil
+    var bcc: Set<MailUser>? = nil
     
-    let subject: String?
+    var replyTo: Set<MailUser>? = nil
     
-    private(set) var customHeaders: [String: String]
+    var subject: String? = nil
     
-    let text: String // https://datatracker.ietf.org/doc/html/rfc5321#section-4.5.2
+    private(set) var customHeaders: [String: String] = [:]
     
     internal var headers: [String: String] {
         var dict: [String: String] = [:]
@@ -83,8 +81,51 @@ struct Mail {
         return dict
     }
     
-    mutating func declareHeaders(@CustomHeaderBuilder content: () -> [String: String]) {
+    init(sender: MailUser, recipients: Set<MailUser>) {
+        self.sender = sender
+        self.recipients = recipients
+    }
+    
+    func declareHeaders(@CustomHeaderBuilder content: () -> [String: String]) {
         customHeaders = content()
+    }
+}
+
+class RawTextMail: Mail {
+    // https://datatracker.ietf.org/doc/html/rfc5321#section-4.5.2
+    let text: String
+    
+    private var transparentTextLines: [String] {
+        if self.text.count > 1000 {
+            var lines: [String] = []
+            var _text = self.text
+            
+            while _text.count > 0 {
+                _text = String(_text.dropFirst(1000))
+                lines.append(_text)
+            }
+            
+            applyTransparencyMechanism(lines: &lines)
+            
+            return lines
+        } else {
+            var line = [self.text]
+            applyTransparencyMechanism(lines: &line)
+            return line
+        }
+    }
+    
+    init(sender: MailUser, recipients: Set<MailUser>, from: Set<MailUser>? = nil, cc: Set<MailUser>? = nil, bcc: Set<MailUser>? = nil,
+         replyTo: Set<MailUser>? = nil, subject: String? = nil, message: String) {
+        self.text = message
+        super.init(sender: sender, recipients: recipients)
+    }
+    
+    // applys transparency mechanism according to https://www.rfc-editor.org/rfc/rfc5321.html#section-4.5.2
+    func applyTransparencyMechanism(lines: inout [String]) {
+        for i in 0..<lines.count {
+            if lines[i].first == "." { lines[i].insert(".", at: lines[i].startIndex) }
+        }
     }
 }
 
