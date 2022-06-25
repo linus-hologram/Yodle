@@ -25,3 +25,9 @@ extension String {
         return String(data: decodedData, encoding: .utf8)
     }
 }
+
+extension Dictionary where Key == String, Value == String {
+    func encodedToMIMEHeaders() -> String {
+        return self.map { "\($0): \($1)\r\n" }.joined()
+    }
+}
