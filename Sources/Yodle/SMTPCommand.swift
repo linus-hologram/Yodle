@@ -16,7 +16,7 @@ enum SMTPCommand {
     case StartMail(String)
     case Recipient(String)
     case StartMailData
-    case MailData(Mail)
+    case MailData(SMTPEncodableMail)
     
     case Reset
     case Verify(String)

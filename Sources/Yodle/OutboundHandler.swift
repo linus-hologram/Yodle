@@ -30,7 +30,9 @@ class YodleOutboundHandler: MessageToByteEncoder {
                 out.writeString("\(key): \(value) \r\n")
             }
             out.writeString("\r\n")
-            out.writeString(mail.text)
+            if let mailData = mail.encodedBodyData() {
+                out.writeString(mailData)
+            }
             out.writeString("\r\n.")
         case .Reset:
             out.writeString("RSET")

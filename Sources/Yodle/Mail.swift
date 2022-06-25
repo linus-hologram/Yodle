@@ -11,23 +11,6 @@ import Foundation
 // https://datatracker.ietf.org/doc/html/rfc5321
 // https://datatracker.ietf.org/doc/html/rfc822
 
-@resultBuilder
-struct CustomHeaderBuilder {
-    typealias HeaderDeclaration = (String, String)
-    
-    static func buildBlock(_ components: HeaderDeclaration...) -> [String: String] {
-        return Dictionary(Array(components.compactMap({ $0 })), uniquingKeysWith: { (first, last) in last })
-    }
-    
-    static func buildEither(first component: HeaderDeclaration) -> [String: String] {
-        return Dictionary(dictionaryLiteral: component)
-    }
-    
-    static func buildEither(second component: HeaderDeclaration) -> [String: String] {
-        return Dictionary(dictionaryLiteral: component)
-    }
-}
-
 // https://www.rfc-editor.org/rfc/rfc2045#section-6.2, https://www.rfc-editor.org/rfc/rfc4021.html#section-2.2.4
 class Mail {
     internal let messageId: String = UUID().uuidString
@@ -43,7 +26,7 @@ class Mail {
     
     var subject: String? = nil
     
-    private(set) var customHeaders: [String: String] = [:]
+    var customMailHeaders: [String: String] = [:]
     
     internal var headers: [String: String] {
         var dict: [String: String] = [:]
@@ -74,7 +57,7 @@ class Mail {
         }
         
         // add custom headers but give priority to standardized ones
-        dict.merge(customHeaders) { standardized, custom in
+        dict.merge(customMailHeaders) { standardized, custom in
             return standardized
         }
         
@@ -85,20 +68,22 @@ class Mail {
         self.sender = sender
         self.recipients = recipients
     }
-    
-    func declareHeaders(@CustomHeaderBuilder content: () -> [String: String]) {
-        customHeaders = content()
-    }
 }
 
-class RawTextMail: Mail {
+protocol SMTPEncodableMail: Mail {
+    func encodedBodyData() -> String?
+}
+
+class RawTextMail: Mail, SMTPEncodableMail {
     // https://datatracker.ietf.org/doc/html/rfc5321#section-4.5.2
-    let text: String
+    var text: String? = nil
     
     private var transparentTextLines: [String] {
-        if self.text.count > 1000 {
+        guard let text = self.text else { return [] }
+        
+        if text.count > 1000 {
             var lines: [String] = []
-            var _text = self.text
+            var _text = text
             
             while _text.count > 0 {
                 _text = String(_text.dropFirst(1000))
@@ -109,16 +94,14 @@ class RawTextMail: Mail {
             
             return lines
         } else {
-            var line = [self.text]
+            var line = [text]
             applyTransparencyMechanism(lines: &line)
             return line
         }
     }
     
-    init(sender: MailUser, recipients: Set<MailUser>, from: Set<MailUser>? = nil, cc: Set<MailUser>? = nil, bcc: Set<MailUser>? = nil,
-         replyTo: Set<MailUser>? = nil, subject: String? = nil, message: String) {
-        self.text = message
-        super.init(sender: sender, recipients: recipients)
+    func encodedBodyData() -> String? {
+        fatalError("Not yet properly implemented! Line stuffing and transparency mechanisms must be reworked.")
     }
     
     // applys transparency mechanism according to https://www.rfc-editor.org/rfc/rfc5321.html#section-4.5.2
