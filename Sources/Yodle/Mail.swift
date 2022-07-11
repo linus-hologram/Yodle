@@ -11,6 +11,10 @@ import Foundation
 // https://datatracker.ietf.org/doc/html/rfc5321
 // https://datatracker.ietf.org/doc/html/rfc822
 
+protocol SMTPEncodableMail: Mail {
+    func encodeMailData() -> String
+}
+
 // https://www.rfc-editor.org/rfc/rfc2045#section-6.2, https://www.rfc-editor.org/rfc/rfc4021.html#section-2.2.4
 class Mail {
     internal let messageId: String = UUID().uuidString
@@ -26,9 +30,9 @@ class Mail {
     
     var subject: String? = nil
     
-    var customMailHeaders: [String: String] = [:]
+    var additionalSMTPHeaders: [String: String] = [:]
     
-    internal var headers: [String: String] {
+    internal var processedSMTPHeaders: [String: String] {
         var dict: [String: String] = [:]
         
         dict["Message-Id"] = "\(messageId)@localhost"
@@ -57,7 +61,7 @@ class Mail {
         }
         
         // add custom headers but give priority to standardized ones
-        dict.merge(customMailHeaders) { standardized, custom in
+        dict.merge(additionalSMTPHeaders) { standardized, custom in
             return standardized
         }
         
@@ -68,10 +72,6 @@ class Mail {
         self.sender = sender
         self.recipients = recipients
     }
-}
-
-protocol SMTPEncodableMail: Mail {
-    func encodedBodyData() -> String?
 }
 
 class RawTextMail: Mail, SMTPEncodableMail {
@@ -100,7 +100,7 @@ class RawTextMail: Mail, SMTPEncodableMail {
         }
     }
     
-    func encodedBodyData() -> String? {
+    func encodeMailData() -> String {
         fatalError("Not yet properly implemented! Line stuffing and transparency mechanisms must be reworked.")
     }
     

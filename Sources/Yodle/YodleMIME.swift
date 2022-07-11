@@ -12,14 +12,23 @@ import NIOCore
 private struct YodleMIMEBodyBuilder {
     typealias Component = MIMEEncodable
     
-    static func buildBlock(_ components: Component...) -> Component {
-        return MIMEMultipartContainer(descendants: Array(components))
+    static func buildBlock(_ components: Component...) -> [Component] {
+        return Array(components)
+    }
+    
+    static func buildEither(first component: Component) -> Component {
+        return component
+    }
+    
+    static func buildEither(second component: Component) -> Component {
+        return component
     }
 }
 
 protocol MIMEEncodable {
     func encode() -> String
     var mimeHeaders: [String: String] { get set }
+    var contentType: MIMEType { get set }
 }
 
 enum MIMEEncoding {
@@ -27,26 +36,39 @@ enum MIMEEncoding {
     case quotedPritable
 }
 
-struct MIMEMultipartContainer: MIMEEncodable {
-    let descendants: [MIMEEncodable]
-    let divider: String = ""
-    var mimeHeaders: [String: String] = [:]
+enum MIMEType {
+    case multipart(String)
+    case image(String)
     
-    init(descendants: [MIMEEncodable]) {
-        self.descendants = descendants
+    case custom(String)
+    
+    func get() -> String {
+        switch self {
+        case .multipart(let subtype), .image(let subtype):
+            return String(describing: self) + "/" + subtype
+        case .custom(let mimeType):
+            return mimeType
+        }
     }
+}
+
+internal struct MIMEMultipartContainer: MIMEEncodable {
+    var contentType: MIMEType = .multipart("mixed")
+    let boundary: String = String((0...70).map{ _ in "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789/+_:().?=,-".randomElement()! }) // supported boundary characters
+    var mimeHeaders: [String: String] = [:]
+    @YodleMIMEBodyBuilder var descendants: () -> [MIMEEncodable]
     
     func encode() -> String {
+        var outputString: String = ""
         
-        fatalError("Function does not yet properly encode the data according to RFC.")
+        // merge content type header into mime headers before next step
+        let headers = mimeHeaders.merging(["Content-Type": "\(contentType.get()); boundary=\"\(boundary)\""]) { _, new in new }
+        outputString.append(headers.encodedToMIMEHeaders())
+        outputString.append("\r\n--\(boundary)\r\n")
+        outputString.append(descendants().map { $0.encode() }.joined(separator: "\r\n--\(boundary)\r\n"))
+        outputString.append("\r\n--\(boundary)--\r\n")
         
-//        var outputString: String = ""
-        
-//        outputString.append(mimeHeaders.encodedToMIMEHeaders())
-//        outputString.append("\r\n")
-//        outputString.append(descendants.map { $0.encode() }.joined(separator: "\n\(divider)\n"))
-//
-//        return outputString
+        return outputString
     }
 }
 
@@ -54,11 +76,8 @@ struct MIMEBodyPart: MIMEEncodable {
     // default struct for all MIME body parts
     let data: Data
     let encoding: MIMEEncoding
+    var contentType: MIMEType
     var mimeHeaders: [String: String]
-    
-    private var encodedHeaderValues: String {
-        mimeHeaders.map { "\($0): \($1)\r\n" }.joined()
-    }
     
     func encode() -> String {
         switch encoding {
@@ -71,19 +90,20 @@ struct MIMEBodyPart: MIMEEncodable {
     
     // https://www.rfc-editor.org/rfc/rfc2045#section-6.8, https://docs.microsoft.com/en-us/previous-versions/office/developer/exchange-server-2010/aa494254(v=exchg.140)
     func encodeToBase64() -> String {
-        // make sure that content transfer encoding is correct, and override if necessary
-        let headers = self.mimeHeaders.merging(["Content-Transfer-Encoding": "base64"]) { _, new in new }
         var outputString: String = ""
         
+        // make sure that content transfer encoding is correct, and override if necessary
+        let headers = self.mimeHeaders.merging(["Content-Type": contentType.get(), "Content-Transfer-Encoding": "base64"]) { _, new in new }
         outputString.append(headers.encodedToMIMEHeaders())
         outputString.append("\r\n")
         outputString.append(data.base64EncodedString(options: [.lineLength76Characters, .endLineWithCarriageReturn, .endLineWithLineFeed]))
+        
         return outputString
     }
     
     // https://www.rfc-editor.org/rfc/rfc2045#section-6.7
     func encodeToQuotedPrintable() -> String {
-        let headers = self.mimeHeaders.merging(["Content-Transfer-Encoding": "Quoted-Printable"]) { _, new in new }
+        let headers = self.mimeHeaders.merging(["Content-Type": contentType.get(), "Content-Transfer-Encoding": "Quoted-Printable"]) { _, new in new }
         
         var outputString: String = ""
         
@@ -96,15 +116,19 @@ struct MIMEBodyPart: MIMEEncodable {
 }
 
 class MIMEMail: Mail, SMTPEncodableMail {
-    var mimeBody: MIMEEncodable? = nil
+    private(set) var mimeBody: MIMEEncodable?
     
-    func encodedBodyData() -> String? {
-        mimeBody?.encode()
+    func encodeMailData() -> String {
+        self.additionalSMTPHeaders.merge(["MIME-Version": "1.0"]) { _, new in new }
+        
+        var outputString: String = ""
+        outputString.append(self.processedSMTPHeaders.encodedToMIMEHeaders())
+        outputString.append("\r\n")
+        
+        if let mimeBody = mimeBody {
+            outputString.append(mimeBody.encode())
+        }
+        
+        return outputString
     }
-}
-
-func container(withHeaders headers: [String: String], @YodleMIMEBodyBuilder containers: () -> MIMEEncodable) -> MIMEEncodable {
-    var container = containers()
-    container.mimeHeaders = headers
-    return container
 }
