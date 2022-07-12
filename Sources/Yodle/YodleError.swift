@@ -21,6 +21,8 @@ enum YodleError: Error {
     case AuthenticationNotSupported(SASLMethods)
     case AuthenticationFailure([SMTPResponse])
     
+    case MailBodyFoundUnsupportedCharacters(String)
+    
     case ParsingError(String)
     
     case UnexpectedError(String)

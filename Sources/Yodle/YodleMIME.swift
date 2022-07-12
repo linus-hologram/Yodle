@@ -123,7 +123,7 @@ struct MIMEBodyPart: MIMEEncodable {
 class MIMEMail: Mail, SMTPEncodableMail {
     private(set) var mimeBody: MIMEEncodable?
     
-    func encodeMailData() -> String {
+    func encodeMailData() throws -> String {
         self.additionalSMTPHeaders.merge(["MIME-Version": "1.0"]) { _, new in new }
         
         var outputString: String = ""

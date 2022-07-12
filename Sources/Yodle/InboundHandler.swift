@@ -78,7 +78,7 @@ class YodleInboundHandler: ByteToMessageDecoder {
         if message.first == " " || message.first == "-" {
             message.removeFirst()
         }
-                
+        
         return SMTPResponse(code: code, message: message)
     }
 }
