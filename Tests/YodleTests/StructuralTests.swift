@@ -10,8 +10,8 @@ import XCTest
 
 class StructuralTests: XCTestCase {
     
-    var rawTextMail: RawTextMail? = nil
-    var mimeMail: MIMEMail? = nil
+    var rawTextMail: RawTextMail! = nil
+    var mimeMail: MIMEMail! = nil
     
     var linus = MailUser(name: "Linus", email: "linus@yodle-package.com")
     var john = MailUser(name: "John", email: "john@yodle-package.com")
@@ -64,13 +64,22 @@ class StructuralTests: XCTestCase {
         XCTAssertEqual(headers.encodeToMailHeaders(), "Field 1: My value.\r\nField 2: Another value.\r\n", "Mail headers are encoded incorrectly.")
     }
     
-    func testAutomaticLineSplitting() throws {
-        rawTextMail!.text = """
-        Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet. Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet. Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet. Duis autem vel eum iriure dolor in hendrerit in vulputate velit esse molestie consequat, vel illum dolore eu f
+    func testAutomaticLineSplitting() {
+        rawTextMail.text = """
+        Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet. Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet. Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet. Duis autem vel eum iriure dolor in hendrerit in vulputate velit esse molestie consequat, vel illum dolore eu feugiat nulla facilisis at vero eros et accumsan et iusto odio dignissim qui blandit praesent luptatu
         """
         
-//        let splitTextBody = try rawTextMail?.getSplitTextBody()
-//        print(splitTextBody)
-//        XCTAssert(try rawTextMail?.getSplitTextBody().count == 2, "Performed line splitting is incorrect")
+        let splitTextBody = rawTextMail.getSplitTextBody()
+        XCTAssert(splitTextBody.count == 2, "Performed line splitting is incorrect")
+        XCTAssertEqual(splitTextBody[0].count, 998, "Line length does not match expected maximum of 998 characters excluding crlf.")
+        XCTAssertEqual(splitTextBody[1].count, rawTextMail.text!.count - 998, "Line does not match expected value for the remaining characters.")
+        
+        rawTextMail.text = "test"
+        XCTAssert(rawTextMail.getSplitTextBody().count == 1, "Performed line splitting is incorrect.")
+    }
+    
+    func testTransparencyMechanism() {
+        let transparentLines = rawTextMail.applyTransparencyMechanism(lines: [".test", "another", "..cat", ".\r\n"])
+        XCTAssertEqual(transparentLines, ["..test", "another", "...cat", "..\r\n"], "Transparency mechanism is not performed correctly.")
     }
 }

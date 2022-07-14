@@ -12,11 +12,16 @@ import Foundation
 // https://datatracker.ietf.org/doc/html/rfc822
 
 protocol SMTPEncodableMail: Mail {
+    /// Encodes a mail object's body properties for transport via SMTP.
+    /// - Returns: A string representing the mail data
     func encodeMailData() throws -> String
 }
 
 // https://www.rfc-editor.org/rfc/rfc2045#section-6.2, https://www.rfc-editor.org/rfc/rfc4021.html#section-2.2.4
-internal class Mail {
+
+
+/// Root class for all Yodle SMTP mail objects. allows specification of SMTP headers and ensures they are set correctly.
+public class Mail {
     internal let messageId: String = UUID().uuidString
     
     let sender: MailUser
@@ -74,19 +79,21 @@ internal class Mail {
     }
 }
 
+/// Represents raw text mail as specified by the original RFC 5321 SMTP specification. If you want to send richer email bodies, refer to ``MIMEMail``.
 class RawTextMail: Mail, SMTPEncodableMail {
     // https://datatracker.ietf.org/doc/html/rfc5321#section-4.5.2
     var text: String? = nil
     
-    // https://datatracker.ietf.org/doc/html/rfc5321#section-2.3.8
-    internal func getSplitTextBody() throws -> [String] {
+    /// Takes the raw text body and performs line splitting to accomodate for [SMTP's maximal line length](https://datatracker.ietf.org/doc/html/rfc5321#section-4.5.3.1.6) of 998 characters (excluding CRLF). If the user already accomodated for this limitation
+    /// by including CRLF sequences in appropriate places, this method will not modify the text body of the email.
+    /// - Returns: The raw text body split into multiple lines.
+    internal func getSplitTextBody() -> [String] {
         guard var _text = self.text else { return [] }
         
         var lines: [String] = []
         
         while _text.count > 0 {
-            
-            if let range = _text.range(of: "\r\n") {
+            if let range = _text.range(of: "\r\n"), _text.distance(from: _text.startIndex, to: range.lowerBound) <= 998 { // crlf sequence must occur after 998 chars at the latest
                 lines.append(String(_text[..<range.lowerBound]))
                 _text.removeSubrange(_text.startIndex...range.upperBound)
             } else {
@@ -94,27 +101,30 @@ class RawTextMail: Mail, SMTPEncodableMail {
                 _text = String(_text.dropFirst(998))
             }
         }
-        
-        if _text.count > 0 { lines.append(_text) }
-        
+
         return lines
     }
+    
     
     func encodeMailData() throws -> String {
-        return try applyTransparencyMechanism().joined(separator: "\r\n")
+        return applyTransparencyMechanism(lines: getSplitTextBody()).joined(separator: "\r\n")
     }
-    
-    // applies transparency mechanism according to https://www.rfc-editor.org/rfc/rfc5321.html#section-4.5.2
-    func applyTransparencyMechanism() throws -> [String] {
-        var lines = try getSplitTextBody()
-        for i in 0..<lines.count {
-            if lines[i].first == "." { lines[i].insert(".", at: lines[i].startIndex) }
+        
+    /// Applies the [SMTP transparency mechanism](https://www.rfc-editor.org/rfc/rfc5321.html#section-4.5.2) to avoid ending mail data transmission prematurely.
+    /// - Parameter lines: the lines of mail data for which the transparency mechanism should be applied
+    /// - Returns: a fully transparent list of lines which can be transmitted via SMTP
+    func applyTransparencyMechanism(lines: [String]) -> [String] {
+        var transparentLines = lines
+        for i in 0..<transparentLines.count {
+            if transparentLines[i].first == "." { transparentLines[i].insert(".", at: transparentLines[i].startIndex) }
         }
         
-        return lines
+        return transparentLines
     }
 }
 
+
+/// Represents a typical SMTP mail user.
 struct MailUser: Hashable {
     let name: String?
     let email: String

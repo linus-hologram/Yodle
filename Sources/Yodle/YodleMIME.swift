@@ -57,7 +57,7 @@ enum MIMEType {
     }
 }
 
-internal struct MIMEMultipartContainer: MIMEEncodable {
+public struct MIMEMultipartContainer: MIMEEncodable {
     var contentType: MIMEType = .multipart("mixed")
     let boundary: String = String((0...70).map{ _ in "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789/+_:().?=,-".randomElement()! }) // supported boundary characters
     var mimeHeaders: [String: String] = [:]
@@ -77,7 +77,7 @@ internal struct MIMEMultipartContainer: MIMEEncodable {
     }
 }
 
-struct MIMEBodyPart: MIMEEncodable {
+public struct MIMEBodyPart: MIMEEncodable {
     // default struct for all MIME body parts
     let data: Data
     let encoding: MIMEEncoding
@@ -120,7 +120,7 @@ struct MIMEBodyPart: MIMEEncodable {
     }
 }
 
-class MIMEMail: Mail, SMTPEncodableMail {
+public class MIMEMail: Mail, SMTPEncodableMail {
     private(set) var mimeBody: MIMEEncodable?
     
     func encodeMailData() throws -> String {
