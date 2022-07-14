@@ -16,7 +16,7 @@ protocol SMTPEncodableMail: Mail {
 }
 
 // https://www.rfc-editor.org/rfc/rfc2045#section-6.2, https://www.rfc-editor.org/rfc/rfc4021.html#section-2.2.4
-class Mail {
+internal class Mail {
     internal let messageId: String = UUID().uuidString
     
     let sender: MailUser
@@ -78,37 +78,40 @@ class RawTextMail: Mail, SMTPEncodableMail {
     // https://datatracker.ietf.org/doc/html/rfc5321#section-4.5.2
     var text: String? = nil
     
-    private func getTransparentTextLines() throws -> [String] {
+    // https://datatracker.ietf.org/doc/html/rfc5321#section-2.3.8
+    internal func getSplitTextBody() throws -> [String] {
         guard var _text = self.text else { return [] }
-        guard !_text.contains("\r"), !_text.contains("\n") else {
-            throw YodleError.MailBodyFoundUnsupportedCharacters("Complete or partial CRLF (\r\n) sequence found in raw text body. Yodle handles line splitting automatically and does not tolerate manual insertion of (partial) termination sequences.")
-        } // https://datatracker.ietf.org/doc/html/rfc5321#section-2.3.8
         
         var lines: [String] = []
         
-        while _text.count >= 998 {
-            let endIndex = _text.index(_text.startIndex, offsetBy: 998)
-            let range = _text.startIndex...endIndex
-            lines.append(String(_text[range]))
-            _text = String(_text.dropFirst(998))
+        while _text.count > 0 {
+            
+            if let range = _text.range(of: "\r\n") {
+                lines.append(String(_text[..<range.lowerBound]))
+                _text.removeSubrange(_text.startIndex...range.upperBound)
+            } else {
+                lines.append(String(_text.prefix(998)))
+                _text = String(_text.dropFirst(998))
+            }
         }
         
         if _text.count > 0 { lines.append(_text) }
-        
-        applyTransparencyMechanism(lines: &lines)
         
         return lines
     }
     
     func encodeMailData() throws -> String {
-        return try getTransparentTextLines().joined(separator: "\r\n")
+        return try applyTransparencyMechanism().joined(separator: "\r\n")
     }
     
-    // applys transparency mechanism according to https://www.rfc-editor.org/rfc/rfc5321.html#section-4.5.2
-    func applyTransparencyMechanism(lines: inout [String]) {
+    // applies transparency mechanism according to https://www.rfc-editor.org/rfc/rfc5321.html#section-4.5.2
+    func applyTransparencyMechanism() throws -> [String] {
+        var lines = try getSplitTextBody()
         for i in 0..<lines.count {
             if lines[i].first == "." { lines[i].insert(".", at: lines[i].startIndex) }
         }
+        
+        return lines
     }
 }
 

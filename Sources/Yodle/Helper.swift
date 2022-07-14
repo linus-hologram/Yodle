@@ -27,7 +27,7 @@ extension String {
 }
 
 extension Dictionary where Key == String, Value == String {
-    func encodedToMIMEHeaders() -> String {
+    func encodeToMailHeaders() -> String {
         return self.map { "\($0): \($1)\r\n" }.joined()
     }
 }

@@ -68,7 +68,7 @@ internal struct MIMEMultipartContainer: MIMEEncodable {
         
         // merge content type header into mime headers before next step
         let headers = mimeHeaders.merging(["Content-Type": "\(contentType.get()); boundary=\"\(boundary)\""]) { _, new in new }
-        outputString.append(headers.encodedToMIMEHeaders())
+        outputString.append(headers.encodeToMailHeaders())
         outputString.append("\r\n--\(boundary)\r\n")
         outputString.append(descendants().map { $0.encode() }.joined(separator: "\r\n--\(boundary)\r\n"))
         outputString.append("\r\n--\(boundary)--\r\n")
@@ -99,7 +99,7 @@ struct MIMEBodyPart: MIMEEncodable {
         
         // make sure that content transfer encoding is correct, and override if necessary
         let headers = self.mimeHeaders.merging(["Content-Type": contentType.get(), "Content-Transfer-Encoding": "base64"]) { _, new in new }
-        outputString.append(headers.encodedToMIMEHeaders())
+        outputString.append(headers.encodeToMailHeaders())
         outputString.append("\r\n")
         outputString.append(data.base64EncodedString(options: [.lineLength76Characters, .endLineWithCarriageReturn, .endLineWithLineFeed]))
         
@@ -112,7 +112,7 @@ struct MIMEBodyPart: MIMEEncodable {
         
         var outputString: String = ""
         
-        outputString.append(headers.encodedToMIMEHeaders())
+        outputString.append(headers.encodeToMailHeaders())
         outputString.append("\r\n")
         
         // TODO: perform actual encoding
@@ -127,7 +127,7 @@ class MIMEMail: Mail, SMTPEncodableMail {
         self.additionalSMTPHeaders.merge(["MIME-Version": "1.0"]) { _, new in new }
         
         var outputString: String = ""
-        outputString.append(self.processedSMTPHeaders.encodedToMIMEHeaders())
+        outputString.append(self.processedSMTPHeaders.encodeToMailHeaders())
         outputString.append("\r\n")
         
         if let mimeBody = mimeBody {
