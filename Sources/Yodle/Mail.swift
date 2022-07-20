@@ -13,12 +13,11 @@ import Foundation
 
 protocol SMTPEncodableMail: Mail {
     /// Encodes a mail object's body properties for transport via SMTP.
-    /// - Returns: A string representing the mail data
-    func encodeMailData() throws -> String
+    /// - Returns: A string representing the mail body data
+    func encodeMailData() -> String
 }
 
 // https://www.rfc-editor.org/rfc/rfc2045#section-6.2, https://www.rfc-editor.org/rfc/rfc4021.html#section-2.2.4
-
 
 /// Root class for all Yodle SMTP mail objects. allows specification of SMTP headers and ensures they are set correctly.
 public class Mail {
@@ -105,11 +104,10 @@ class RawTextMail: Mail, SMTPEncodableMail {
         return lines
     }
     
-    
-    func encodeMailData() throws -> String {
+    func encodeMailData() -> String {
         return applyTransparencyMechanism(lines: getSplitTextBody()).joined(separator: "\r\n")
     }
-        
+    
     /// Applies the [SMTP transparency mechanism](https://www.rfc-editor.org/rfc/rfc5321.html#section-4.5.2) to avoid ending mail data transmission prematurely.
     /// - Parameter lines: the lines of mail data for which the transparency mechanism should be applied
     /// - Returns: a fully transparent list of lines which can be transmitted via SMTP
@@ -122,7 +120,6 @@ class RawTextMail: Mail, SMTPEncodableMail {
         return transparentLines
     }
 }
-
 
 /// Represents a typical SMTP mail user.
 struct MailUser: Hashable {

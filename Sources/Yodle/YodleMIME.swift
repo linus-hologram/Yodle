@@ -87,35 +87,22 @@ public struct MIMEBodyPart: MIMEEncodable {
     func encode() -> String {
         switch encoding {
         case .base64:
-            return encodeToBase64()
+            // make sure that content transfer encoding is correct, and override if necessary
+            let headers = self.mimeHeaders.merging(["Content-Type": contentType.get(), "Content-Transfer-Encoding": "base64"]) { _, new in new }
+            return headers.encodeToMailHeaders() + "\r\n" + encodeToBase64()
         case .quotedPritable:
-            return encodeToQuotedPrintable()
+            let headers = self.mimeHeaders.merging(["Content-Type": contentType.get(), "Content-Transfer-Encoding": "Quoted-Printable"]) { _, new in new }
+            return headers.encodeToMailHeaders() + "\r\n" + encodeToQuotedPrintable()
         }
     }
     
     // https://www.rfc-editor.org/rfc/rfc2045#section-6.8, https://docs.microsoft.com/en-us/previous-versions/office/developer/exchange-server-2010/aa494254(v=exchg.140)
     func encodeToBase64() -> String {
-        var outputString: String = ""
-        
-        // make sure that content transfer encoding is correct, and override if necessary
-        let headers = self.mimeHeaders.merging(["Content-Type": contentType.get(), "Content-Transfer-Encoding": "base64"]) { _, new in new }
-        outputString.append(headers.encodeToMailHeaders())
-        outputString.append("\r\n")
-        outputString.append(data.base64EncodedString(options: [.lineLength76Characters, .endLineWithCarriageReturn, .endLineWithLineFeed]))
-        
-        return outputString
+        return data.base64EncodedString(options: [.lineLength76Characters, .endLineWithCarriageReturn, .endLineWithLineFeed])
     }
     
     // https://www.rfc-editor.org/rfc/rfc2045#section-6.7
     func encodeToQuotedPrintable() -> String {
-        let headers = self.mimeHeaders.merging(["Content-Type": contentType.get(), "Content-Transfer-Encoding": "Quoted-Printable"]) { _, new in new }
-        
-        var outputString: String = ""
-        
-        outputString.append(headers.encodeToMailHeaders())
-        outputString.append("\r\n")
-        
-        // TODO: perform actual encoding
         fatalError("Not yet implemented.")
     }
 }
@@ -123,7 +110,7 @@ public struct MIMEBodyPart: MIMEEncodable {
 public class MIMEMail: Mail, SMTPEncodableMail {
     private(set) var mimeBody: MIMEEncodable?
     
-    func encodeMailData() throws -> String {
+    func encodeMailData() -> String {
         self.additionalSMTPHeaders.merge(["MIME-Version": "1.0"]) { _, new in new }
         
         var outputString: String = ""

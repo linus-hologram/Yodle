@@ -10,6 +10,7 @@ import XCTest
 
 class StructuralTests: XCTestCase {
     
+    var mail: Mail! = nil
     var rawTextMail: RawTextMail! = nil
     var mimeMail: MIMEMail! = nil
     
@@ -23,12 +24,15 @@ class StructuralTests: XCTestCase {
     
     override func setUpWithError() throws {
         // Put setup code here. This method is called before the invocation of each test method in the class.
+        mail = RawTextMail(sender: john, recipients: [bernhard, susan])
         rawTextMail = RawTextMail(sender: john, recipients: [bernhard, susan])
     }
     
     override func tearDownWithError() throws {
         // Put teardown code here. This method is called after the invocation of each test method in the class.
         rawTextMail = nil
+        mail = nil
+        mimeMail = nil
     }
     
     func testMailUserStructure() {
@@ -37,15 +41,15 @@ class StructuralTests: XCTestCase {
     }
     
     func testMailHeaderStructure() {
-        rawTextMail?.from = [linus]
-        rawTextMail?.cc = [anna]
-        rawTextMail?.bcc = [ninna]
-        rawTextMail?.replyTo = [lawrence]
-        rawTextMail?.subject = "Very important subject."
+        mail?.from = [linus]
+        mail?.cc = [anna]
+        mail?.bcc = [ninna]
+        mail?.replyTo = [lawrence]
+        mail?.subject = "Very important subject."
         
-        rawTextMail?.additionalSMTPHeaders = ["From": "This is a test.", "X-Custom-Field": "A header value."]
+        mail?.additionalSMTPHeaders = ["From": "This is a test.", "X-Custom-Field": "A header value."]
         
-        let processedHeaders = rawTextMail!.processedSMTPHeaders
+        let processedHeaders = mail!.processedSMTPHeaders
         
         XCTAssertEqual(processedHeaders["From"], linus.smtpFormatted, "From header field holds incorrect value.") // standard property should be prioritized over additionalSMTPHeaders
         XCTAssertNotNil(processedHeaders["Message-Id"], "Message id is not set.")
@@ -80,5 +84,21 @@ class StructuralTests: XCTestCase {
     func testTransparencyMechanism() {
         let transparentLines = rawTextMail.applyTransparencyMechanism(lines: [".test", "another", "..cat", ".\r\n"])
         XCTAssertEqual(transparentLines, ["..test", "another", "...cat", "..\r\n"], "Transparency mechanism is not performed correctly.")
+    }
+    
+    func testRawTextEncoding() {
+        rawTextMail.text = ".test"
+        XCTAssertEqual(rawTextMail.encodeMailData(), "..test", "Incorrect raw text encoding.")
+        
+        rawTextMail.text = """
+        .Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet. Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet. Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet. Duis autem vel eum iriure dolor in hendrerit in vulputate velit esse molestie consequat, vel illum dolore eu feugiat nulla facilisis at vero eros et accumsan et iusto odio dignissim qui blandit praesent luptatu
+        """
+        let encodedText = rawTextMail.encodeMailData()
+        XCTAssertEqual(encodedText, "." + rawTextMail.text!.prefix(998) + "\r\n" + rawTextMail.text!.suffix(rawTextMail.text!.count - 998), "Incorrect raw text encoding.")
+    }
+    
+    func testBase64Encoding() {
+        let bodyPart = MIMEBodyPart(data: "This is a test. And we have to make sure to reach a maximum line length of at least 76 to see the splitting behavior.".data(using: .utf8)!, encoding: .base64, contentType: .text("plain"), mimeHeaders: [:])
+        XCTAssertEqual(bodyPart.encodeToBase64(), "VGhpcyBpcyBhIHRlc3QuIEFuZCB3ZSBoYXZlIHRvIG1ha2Ugc3VyZSB0byByZWFjaCBhIG1heGlt\r\ndW0gbGluZSBsZW5ndGggb2YgYXQgbGVhc3QgNzYgdG8gc2VlIHRoZSBzcGxpdHRpbmcgYmVoYXZp\r\nb3Iu", "Incorrect base64 encoding.")
     }
 }
