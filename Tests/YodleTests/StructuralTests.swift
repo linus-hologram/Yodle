@@ -50,7 +50,7 @@ class StructuralTests: XCTestCase {
         XCTAssertEqual(processedHeaders["From"], linus.smtpFormatted, "From header field holds incorrect value.") // standard property should be prioritized over additionalSMTPHeaders
         XCTAssertNotNil(processedHeaders["Message-Id"], "Message id is not set.")
         XCTAssertNotNil(processedHeaders["Date"], "Date field is not set.")
-        XCTAssertEqual(processedHeaders["To"], bernhard.smtpFormatted + "," + susan.smtpFormatted, "To header field holds incorrect value.")
+        XCTAssert((processedHeaders["To"] == bernhard.smtpFormatted + "," + susan.smtpFormatted) || (processedHeaders["To"] == susan.smtpFormatted + "," + bernhard.smtpFormatted), "To header field holds incorrect value.")
         XCTAssertEqual(processedHeaders["Cc"], anna.smtpFormatted, "Cc header field holds incorrect value.")
         XCTAssertEqual(processedHeaders["Bcc"], ninna.smtpFormatted, "Bcc header field holds incorrect value.")
         XCTAssertEqual(processedHeaders["Reply-To"], lawrence.smtpFormatted, "Reply-To header field holds incorrect value.")
@@ -59,9 +59,8 @@ class StructuralTests: XCTestCase {
     }
     
     func testMailHeaderEncoding() {
-        let headers = ["Field 1": "My value.", "Field 2": "Another value."]
-        print(headers.encodeToMailHeaders())
-        XCTAssertEqual(headers.encodeToMailHeaders(), "Field 1: My value.\r\nField 2: Another value.\r\n", "Mail headers are encoded incorrectly.")
+        let headers = ["Field 1": "My value.", "Field 2": "Another value."].encodeToMailHeaders()
+        XCTAssert(headers.contains("Field 1: My value.\r\n") && headers.contains("Field 2: Another value.\r\n"), "Mail headers are encoded incorrectly.")
     }
     
     func testAutomaticLineSplitting() {
