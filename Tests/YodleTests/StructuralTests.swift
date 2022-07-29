@@ -22,6 +22,7 @@ class StructuralTests: XCTestCase {
     var bernhard = MailUser(name: "Bernhard", email: "bernhard@yodle-package.com")
     var susan = MailUser(name: "Susan", email: "susan@yodle-package.com")
     
+    
     override func setUpWithError() throws {
         // Put setup code here. This method is called before the invocation of each test method in the class.
         mail = RawTextMail(sender: john, recipients: [bernhard, susan])
@@ -100,5 +101,12 @@ class StructuralTests: XCTestCase {
     func testBase64Encoding() {
         let bodyPart = MIMEBodyPart(data: "This is a test. And we have to make sure to reach a maximum line length of at least 76 to see the splitting behavior.".data(using: .utf8)!, encoding: .base64, contentType: .text("plain"), mimeHeaders: [:])
         XCTAssertEqual(bodyPart.encodeToBase64(), "VGhpcyBpcyBhIHRlc3QuIEFuZCB3ZSBoYXZlIHRvIG1ha2Ugc3VyZSB0byByZWFjaCBhIG1heGlt\r\ndW0gbGluZSBsZW5ndGggb2YgYXQgbGVhc3QgNzYgdG8gc2VlIHRoZSBzcGxpdHRpbmcgYmVoYXZp\r\nb3Iu", "Incorrect base64 encoding.")
+    }
+    
+    func testMimeBodyPartHeaderEncoding() {
+        let part = MIMEBodyPart(data: "This is a test".data(using: .utf8)!, encoding: .base64, contentType: .video("mp4"), mimeHeaders: ["Content-Type": "text/raw", "Content-Transfer-Encoding": "non existent encoding!"]).encode()
+        
+        XCTAssert(part.contains("Content-Type: video/mp4"), "MIME header does not populate correct content type.")
+        XCTAssert(part.contains("Content-Transfer-Encoding: base64"), "MIME header does not populate correct content transfer encoding.")
     }
 }

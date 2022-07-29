@@ -47,10 +47,17 @@ enum MIMEType {
     
     case custom(String)
     
+    var typeDescription: String {
+        var description = "\(self)"
+        let subtypeRange = description.range(of: "(")!.lowerBound..<description.endIndex
+        description.removeSubrange(subtypeRange)
+        return description
+    }
+    
     func get() -> String {
         switch self {
         case .multipart(let subtype), .image(let subtype), .audio(let subtype), .video(let subtype), .application(let subtype), .text(let subtype), .font(let subtype):
-            return String(describing: self) + "/" + subtype
+            return typeDescription + "/" + subtype
         case .custom(let mimeType):
             return mimeType
         }
@@ -102,7 +109,7 @@ public struct MIMEBodyPart: MIMEEncodable {
     }
     
     // https://www.rfc-editor.org/rfc/rfc2045#section-6.7
-    func encodeToQuotedPrintable() -> String {
+    private func encodeToQuotedPrintable() -> String {
         fatalError("Not yet implemented.")
     }
 }
