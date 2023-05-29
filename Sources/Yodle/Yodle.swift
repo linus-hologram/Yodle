@@ -120,7 +120,7 @@ public struct YodleClient {
         try? await channel.close()
     }
     
-    func sendMail(mail: SMTPEncodableMail) async throws {
+    func sendMail(mail: any SMTPEncodableMail) async throws {
         try await context.send(message: .StartMail(mail.sender.email)).expectResponseStatus(codes: .commandOK)
         
         for recipient in mail.recipients {

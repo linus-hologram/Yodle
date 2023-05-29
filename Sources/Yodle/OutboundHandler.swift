@@ -26,7 +26,7 @@ class YodleOutboundHandler: MessageToByteEncoder {
         case .StartMailData:
             out.writeString("DATA")
         case .MailData(let mail):
-            out.writeString(mail.processedSMTPHeaders.encodeToMailHeaders())
+            out.writeString(mail.combinedHeaders.encodeToSMTPHeaderString())
             out.writeString("\r\n")
             out.writeString(try mail.encodeMailData())
             out.writeString("\r\n.")

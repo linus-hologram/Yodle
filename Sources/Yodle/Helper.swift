@@ -26,8 +26,9 @@ extension String {
     }
 }
 
-extension Dictionary where Key == String, Value == String {
-    func encodeToMailHeaders() -> String {
-        return self.map { "\($0): \($1)\r\n" }.joined()
+extension Sequence where Element == SMTPHeader {
+    /// Encodes the given Array of ``SMTPHeader``'s to a CRLF separated string for submission to an SMTP server.
+    func encodeToSMTPHeaderString() -> String {
+        return self.map { "\($0.header): \($0.value)\r\n" }.joined()
     }
 }
