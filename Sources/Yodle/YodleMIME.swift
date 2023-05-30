@@ -31,39 +31,6 @@ protocol MIMEEncodable {
     var contentType: MIMEType { get set }
 }
 
-enum MIMEEncoding {
-    case base64
-    case quotedPritable
-}
-
-enum MIMEType {
-    case multipart(String)
-    case image(String)
-    case audio(String)
-    case video(String)
-    case application(String)
-    case text(String)
-    case font(String)
-    
-    case custom(String)
-    
-    var typeDescription: String {
-        var description = "\(self)"
-        let subtypeRange = description.range(of: "(")!.lowerBound..<description.endIndex
-        description.removeSubrange(subtypeRange)
-        return description
-    }
-    
-    func get() -> String {
-        switch self {
-        case .multipart(let subtype), .image(let subtype), .audio(let subtype), .video(let subtype), .application(let subtype), .text(let subtype), .font(let subtype):
-            return typeDescription + "/" + subtype
-        case .custom(let mimeType):
-            return mimeType
-        }
-    }
-}
-
 public struct MIMEMultipartContainer: MIMEEncodable {
     var contentType: MIMEType = .multipart("mixed")
     let boundary: String = String((0...70).map{ _ in "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789/+_:().?=,-".randomElement()! }) // supported boundary characters
@@ -81,36 +48,6 @@ public struct MIMEMultipartContainer: MIMEEncodable {
         outputString.append("\r\n--\(boundary)--\r\n")
         
         return outputString
-    }
-}
-
-public struct MIMEBodyPart: MIMEEncodable {
-    // default struct for all MIME body parts
-    let data: Data
-    let encoding: MIMEEncoding
-    var contentType: MIMEType
-    var mimeHeaders: [String: String]
-    
-    func encode() -> String {
-        switch encoding {
-        case .base64:
-            // make sure that content transfer encoding is correct, and override if necessary
-            let headers = self.mimeHeaders.merging(["Content-Type": contentType.get(), "Content-Transfer-Encoding": "base64"]) { _, new in new }
-            return headers.encodeToMailHeaders() + "\r\n" + encodeToBase64()
-        case .quotedPritable:
-            let headers = self.mimeHeaders.merging(["Content-Type": contentType.get(), "Content-Transfer-Encoding": "Quoted-Printable"]) { _, new in new }
-            return headers.encodeToMailHeaders() + "\r\n" + encodeToQuotedPrintable()
-        }
-    }
-    
-    // https://www.rfc-editor.org/rfc/rfc2045#section-6.8, https://docs.microsoft.com/en-us/previous-versions/office/developer/exchange-server-2010/aa494254(v=exchg.140)
-    func encodeToBase64() -> String {
-        return data.base64EncodedString(options: [.lineLength76Characters, .endLineWithCarriageReturn, .endLineWithLineFeed])
-    }
-    
-    // https://www.rfc-editor.org/rfc/rfc2045#section-6.7
-    private func encodeToQuotedPrintable() -> String {
-        fatalError("Not yet implemented.")
     }
 }
 
