@@ -8,15 +8,15 @@
 import Foundation
 import NIOCore
 
-public struct MIMEContentBodyPart {
-    let data: ByteBuffer
-    let encoding: MIMEEncoding
-    var contentType: MIMEType
-    let disposition: MIMEType.Disposition? = nil
+public struct MIMEContentBodyPart: MIMEEncodableBodyPart {
+    public let data: ByteBuffer
+    public let encoding: MIMEEncoding
+    public var contentType: MIMEType
+    public let disposition: MIMEType.Disposition? = nil
 
-    var additionalMIMEHeaders: [SMTPHeader]
+    public var additionalMIMEHeaders: [SMTPHeader]
 
-    func encode() -> String {
+    public func encode() -> String {
         var headers: [SMTPHeader] = []
 
         if let contentDisposition = disposition {

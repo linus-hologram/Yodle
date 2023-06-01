@@ -8,13 +8,18 @@
 import Foundation
 
 /// The encoding used for the MIME content bodies.
-enum MIMEEncoding: String {
+public enum MIMEEncoding: String {
     case base64
     case quotedPritable = "Quoted-Printable"
 }
 
-/// A set of default content types used within MIME content bodies.
-enum MIMEType {
+/// A set of default content types used within MIME content bodies. Each type takes a string representing the subtype and possible secondary arguments such as `charset`.
+///
+/// ```
+/// let a = MIMEType.text("plain") // "text/plain"
+/// let b = MIMEType.text("plain; charset=utf8") // "text/plain; charset=utf8"
+/// ```
+public enum MIMEType {
     case multipart(String)
     case image(String)
     case audio(String)
@@ -44,7 +49,7 @@ enum MIMEType {
 
 extension MIMEType {
     /// Available dispositions relevant for use with MIME Content Bodies. See[RFC 2183](https://datatracker.ietf.org/doc/rfc2183/) for more details.
-    enum Disposition: String {
+    public enum Disposition: String {
         case inline
         case attachment
     }

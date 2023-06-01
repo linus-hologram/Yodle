@@ -31,4 +31,8 @@ extension Sequence where Element == SMTPHeader {
     func encodeToSMTPHeaderString() -> String {
         return self.map { "\($0.header): \($0.value)\r\n" }.joined()
     }
+
+    subscript(_ header: String) -> SMTPHeader? {
+        return self.first(where: { $0.header == header })
+    }
 }
